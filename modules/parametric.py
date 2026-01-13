@@ -42,15 +42,15 @@ def parametric(ns, nt, a, b, X, Sigma, S_, h_, SELECTION_F,
     while z < zmax:
         z += 0.0001
 
-        # Skip qua các khoảng đã được detect để tăng tốc độ xử lý
-        for i in range(len(detectedinter)):
-            if detectedinter[i][0] <= z <= detectedinter[i][1]:
-                z = detectedinter[i][1] + 0.0001
-                detectedinter = detectedinter[i:]
-                break
+        # # Skip qua các khoảng đã được detect để tăng tốc độ xử lý
+        # for i in range(len(detectedinter)):
+        #     if detectedinter[i][0] <= z <= detectedinter[i][1]:
+        #         z = detectedinter[i][1] + 0.0001
+        #         detectedinter = detectedinter[i:]
+        #         break
         
-        if z > zmax:
-            break
+        # if z > zmax:
+        #     break
 
         # 1. Cập nhật dữ liệu theo tham số z
         Ydeltaz = a + b * z
@@ -109,12 +109,17 @@ def parametric(ns, nt, a, b, X, Sigma, S_, h_, SELECTION_F,
                     ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
                     Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz
                 )
-
+        for left, right in intervalinloop:
+            if left <= z <= right:
+                intervalinloop = [(left, right)]
+                break
         # 4. Hợp nhất các khoảng (Interval Union)
-        detectedinter = intersection.interval_union(detectedinter, intervalinloop)
+        # detectedinter = intersection.interval_union(detectedinter, intervalinloop)
 
         # 5. Kiểm tra nếu Selection khớp với Selection gốc (F)
         if sorted(SELECTIONinloop) == sorted(SELECTION_F):
+            # TD = intersection.interval_union(TD, intervalinloop)
             TD = intersection.interval_union(TD, intervalinloop)
+        z = intervalinloop[-1][1]
 
     return TD
