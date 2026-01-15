@@ -11,6 +11,7 @@ def generate(n, m, p, true_beta_s, true_beta_t):
     mu_s = Xs.dot(true_beta_s)
     mu_t = Xt.dot(true_beta_t)
     # print(true_beta_s, true_beta_t)
+    # np.random.seed(0)
     Ys = mu_s + np.random.normal(loc = 0, scale = 1, size = (n, 1))
     Yt = mu_t + np.random.normal(loc = 0, scale = 1, size = (m, 1))
 

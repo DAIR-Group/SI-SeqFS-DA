@@ -20,7 +20,7 @@ def main():
     # SI-SeqFS-DA to calculate p-value of the selected features
     print('Index of selected features:', '{' + ', '.join(map(str, list_selected_features)) + '}')
     print('Applying SI-SeqFS-DA to calculate p-value of the selected features:')
-    for j in range(len(list_selected_features)):
+    for j in range(1):
         pvalue = SI_SeqFS_DA.SI_SeqFS_DA(Xs, Ys, Xt, Yt, K, Sigma_s, Sigma_t, method='forward', jth = j)
         print(f'    p-value of feature {list_selected_features[j]}: {pvalue}')
 

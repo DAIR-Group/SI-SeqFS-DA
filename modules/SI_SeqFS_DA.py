@@ -4,8 +4,8 @@ from . import OptimalTransport
 from . import ForwardSelection as FS
 from . import BackwardSelection as BS
 from . import overconditioning 
-# from . import parametric
-from . import parametric_parallel as parametric
+from . import parametric
+# from . import parametric_parallel as parametric
 from . import gendata
 from scipy.linalg import block_diag
 from mpmath import mp
