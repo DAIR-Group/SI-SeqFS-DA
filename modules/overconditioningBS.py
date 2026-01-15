@@ -260,3 +260,37 @@ def OC_fixedBS_interval(ns, nt, a, b, XsXt_, Xtilde, Ytilde, Sigmatilde, B, S_, 
                                     lst_SELECk, GAMMA.dot(a), GAMMA.dot(b))
     finalinterval = intersection.interval_intersection(itvDA, itvBS) 
     return finalinterval, itvDA, itvBS
+
+
+def OC_DA_BS_Criterion_(ns, nt, a, b, Xtilde, Ytilde, Sigmatilde, SELECTION_F, GAMMA,seed = 0, typeCrit = 'AIC'):
+
+    lst_SELECk, lst_P = BackwardSelection.list_residualvec_BS(Xtilde, Ytilde)
+    lst_SELECk.reverse()
+    itvBS = interval_SBS(Xtilde, Ytilde, 
+                                    len(SELECTION_F),
+                                    lst_SELECk,
+                                    GAMMA.dot(a), GAMMA.dot(b))
+    if typeCrit == 'AIC':
+        itvCriterion = interval_AIC_BS(Xtilde, Ytilde, 
+                                        lst_P, len(SELECTION_F), 
+                                        GAMMA.dot(a), GAMMA.dot(b), Sigmatilde, seed)
+    if typeCrit == 'BIC':
+        itvCriterion = interval_BIC(Xtilde, Ytilde, 
+                                        lst_P, len(SELECTION_F), 
+                                        GAMMA.dot(a), GAMMA.dot(b), Sigmatilde, seed)
+    if typeCrit == 'Adjusted R2':
+        itvCriterion = interval_AdjustedR2(Xtilde, Ytilde, 
+                                            lst_P, len(SELECTION_F), 
+                                            GAMMA.dot(a), GAMMA.dot(b), Sigmatilde, seed)
+    finalinterval = intersection.interval_intersection(itvBS, itvCriterion)
+    return finalinterval
+
+
+def OC_fixedBS_interval_(ns, nt, a, b, Xtilde, Ytilde, Sigmatilde, SELECTION_F, GAMMA,):
+
+    lst_SELECk = BackwardSelection.list_residualvec_BS(Xtilde, Ytilde)[0]
+    lst_SELECk.reverse()
+    itvBS = interval_SBS(Xtilde, Ytilde, len(SELECTION_F),
+                                    lst_SELECk, GAMMA.dot(a), GAMMA.dot(b))
+    # finalinterval = intersection.interval_intersection(itvDA, itvBS) 
+    return itvBS, None, itvBS

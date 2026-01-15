@@ -249,3 +249,39 @@ def OC_FS_AIC_nonDA(n,a,b,X,Y,Sigma,SELECTION_F):
     finalinterval = intersection.interval_intersection(itvFS, itvAIC)
     # print(f"fs: {itvFS} | aic: {itvAIC}")
     return finalinterval
+
+
+def OC_Crit_interval_(ns, nt, a, b, Xtilde, Ytilde, Sigmatilde, SELECTION_F, GAMMA,k,seed = 0):
+
+    lst_SELECk, lst_P = ForwardSelection.list_residualvec(Xtilde, Ytilde)
+    itvFS = interval_SFS(Xtilde, Ytilde, 
+                                    len(SELECTION_F),
+                                    lst_SELECk, lst_P,
+                                    GAMMA.dot(a), GAMMA.dot(b))
+    if k == 'AIC':
+        itvCriterion = interval_AIC(Xtilde, Ytilde, 
+                                        lst_P, len(SELECTION_F), 
+                                        GAMMA.dot(a), GAMMA.dot(b), Sigmatilde, seed)
+    elif k == 'BIC':
+        itvCriterion = interval_BIC(Xtilde, Ytilde, 
+                                        lst_P, len(SELECTION_F),
+                                        GAMMA.dot(a), GAMMA.dot(b), Sigmatilde, seed)
+    elif k == 'Adjusted R2':
+        itvCriterion = interval_AdjustedR2(Xtilde, Ytilde, 
+                                    lst_P, len(SELECTION_F),
+                                    GAMMA.dot(a), GAMMA.dot(b), Sigmatilde, seed)
+
+    finalinterval = intersection.interval_intersection(itvFS, itvCriterion)
+    # print(f"da: {itvDA} | fs: {itvFS} | aic: {itvCriterion}")
+    return finalinterval
+def OC_fixedFS_interval_(ns, nt, a, b, Xtilde, Ytilde, Sigmatilde, SELECTION_F, GAMMA,):
+
+    lst_SELECk, lst_P = ForwardSelection.list_residualvec(Xtilde, Ytilde)
+
+    itvFS = interval_SFS(Xtilde, Ytilde, 
+                                    len(SELECTION_F),
+                                    lst_SELECk, lst_P,
+                                    GAMMA.dot(a), GAMMA.dot(b))
+    # print(itvDA, itvFS)
+    # finalinterval = intersection.interval_intersection(itvDA, itvFS) 
+    return itvFS, None, itvFS

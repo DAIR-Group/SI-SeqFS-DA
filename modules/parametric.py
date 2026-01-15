@@ -55,7 +55,6 @@ def parametric_simplex_quadratic(ns, nt, H, h, u, v, w, z_min, z_max):
     # 1. Tìm lời giải ban đầu tại z_min
     
     c_start = u + v * z_min + w * (z_min**2)
-    print("z", z_min,"c_start:", c_start)
     # Sử dụng method='highs' để có độ chính xác tốt hơn
     res = linprog(c_start, A_ub = - np.identity(ns * nt), b_ub = np.zeros((ns * nt, 1)), A_eq=H, b_eq=h, method='simplex',options={'maxiter': 1000000})
 
@@ -140,7 +139,7 @@ def compute_DA_intervals(ns, nt, a, b, c_, S, h, m_min=-20, m_max=20):
     w_tilde = c_ + Omega_a * Omega_a
     r_tilde = 2*Omega_a * Omega_b
     o_tilde = Omega_b * Omega_b
-    print("cost", )
+
     intervals = parametric_simplex_quadratic(ns, nt,
         S, h,
         w_tilde, r_tilde, o_tilde,
@@ -185,80 +184,150 @@ def parametric(ns, nt, a, b, X, Sigma, S_, h_, SELECTION_F,
     c_ = np.zeros((ns * nt, 1))
     for i in range(X.shape[1]):
         c_ += (OMEGA.dot(X[:, [i]])) * (OMEGA.dot(X[:, [i]]))
-    daitv = compute_DA_intervals(ns, nt, a, b, c_, S_, h_, m_min=z_min+0.0001, m_max=z_max)
-    for ml, mr, B in daitv:
-        print(f"Processing interval [{ml}, {mr}], Basis: {len(B)}, {[int(x) for x in B]}")
-    # TD = [(-np.inf, np.inf)]
-    while z < zmax:
-        z += 0.0001
-        print("z", z)
-        # F(z) -> intervalinloop = [left, right] -------------
-        # 1. Cập nhật dữ liệu theo tham số z
-        Ydeltaz = a + b * z
-        XsXt_deltaz = np.concatenate((X, Ydeltaz), axis=1).copy()
+    list_da_itv = compute_DA_intervals(ns, nt, a, b, c_, S_, h_, m_min=z_min+0.0001, m_max=z_max)
+    for ml, mr, B in list_da_itv:
+        # print(f"Processing interval [{ml}, {mr}], Basis: {len(B)}, {[int(x) for x in B]}")
+        z = ml + 0.00001
+        while z < mr:
+            Ydeltaz = a + b * z
+            T = np.zeros(ns * nt)
+
+            x_B = np.linalg.inv(S_[:, B]).dot(h_)
+            T[B] = x_B.flatten()
+            T =  T.reshape((ns, nt))
+
+            GAMMAdeltaz = OptimalTransport.constructGamma(ns, nt,T)
+            Xtildeinloop = np.dot(GAMMAdeltaz, X)
+            Ytildeinloop = np.dot(GAMMAdeltaz, Ydeltaz)
+            Sigmatilde_deltaz = GAMMAdeltaz.T.dot(Sigma.dot(GAMMAdeltaz))
+            
+            itvDA = [(ml, mr)]
+            
+            # 3. Lựa chọn Model (Selection) và Tính toán Interval
+            if method == 'FS':
+                if k_type == 'stopping':
+                    # Tương đương para_DA_FSwithStoppingCriterion
+                    if criterion == 'AIC':
+                        SELECTIONinloop = ForwardSelection.SelectionAIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+                    elif criterion == 'BIC':
+                        SELECTIONinloop = ForwardSelection.SelectionBIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+                    elif criterion == 'Adjusted R2':
+                        SELECTIONinloop = ForwardSelection.SelectionAdjR2(Ytildeinloop, Xtildeinloop)
+                    
+                    intervalinloop = overconditioning.OC_Crit_interval_(
+                        ns, nt, a, b, Xtildeinloop, Ytildeinloop, 
+                        Sigmatilde_deltaz, SELECTIONinloop, GAMMAdeltaz, criterion
+                    )
+                else:
+                    # Tương đương para_DA_FSwithfixedK
+                    SELECTIONinloop = ForwardSelection.fixedSelection(Ytildeinloop, Xtildeinloop, len(SELECTION_F))[0]
+                    intervalinloop, _, _ = overconditioning.OC_fixedFS_interval_(
+                        ns, nt, a, b, Xtildeinloop, Ytildeinloop, 
+                        Sigmatilde_deltaz, SELECTIONinloop, GAMMAdeltaz
+                    )
+
+            elif method == 'BS':
+                if k_type == 'stopping':
+                    # Tương đương para_DA_BSwith_stoppingCriteria
+                    if criterion == 'AIC':
+                        SELECTIONinloop = BackwardSelection.SelectionAICforBS(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+                    elif criterion == 'BIC':
+                        SELECTIONinloop = BackwardSelection.SelectionBIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+                    elif criterion == 'Adjusted R2':
+                        SELECTIONinloop = BackwardSelection.SelectionAdjR2(Ytildeinloop, Xtildeinloop)
+                    
+                    intervalinloop = overconditioningBS.OC_DA_BS_Criterion_(
+                        ns, nt, a, b, Xtildeinloop, Ytildeinloop, 
+                        Sigmatilde_deltaz, SELECTIONinloop, GAMMAdeltaz, seed, criterion
+                    )
+                else:
+                    # Tương đương para_DA_BS
+                    SELECTIONinloop = BackwardSelection.fixedBS(Ytildeinloop, Xtildeinloop, len(SELECTION_F))[0]
+                    intervalinloop, _, _ = overconditioningBS.OC_fixedBS_interval_(
+                        ns, nt, a, b, Xtildeinloop, Ytildeinloop, 
+                        Sigmatilde_deltaz, SELECTIONinloop, GAMMAdeltaz
+                    )
+            for left, right in intervalinloop:
+                if left <= z <= right:
+                    intervalinloop = [(left, right)]
+                    z = min(right, mr) + 0.00001
+                    break
+            TD = intersection.interval_union(TD, 
+                                            intersection.interval_intersection(intervalinloop, itvDA))
+            
+    
+    
+    
+    # while z < zmax:
+    #     z += 0.0001
+    #     print("z", z)
+    #     # F(z) -> intervalinloop = [left, right] -------------
+    #     # 1. Cập nhật dữ liệu theo tham số z
+    #     Ydeltaz = a + b * z
+    #     XsXt_deltaz = np.concatenate((X, Ydeltaz), axis=1).copy()
         
-        # 2. Giải Optimal Transport
-        GAMMAdeltaz, basis_var_deltaz = OptimalTransport.solveOT(ns, nt, S_, h_, XsXt_deltaz).values()
-        # GAMMAdeltaz = res_ot['gamma'] # Giả định cấu trúc trả về từ values()
-        # basis_var_deltaz = res_ot['basis_var']
-        print(f"basis_var_deltaz: {len(basis_var_deltaz)}- {[int(x) for x in basis_var_deltaz]}")
-        Xtildeinloop = np.dot(GAMMAdeltaz, X)
-        Ytildeinloop = np.dot(GAMMAdeltaz, Ydeltaz)
-        Sigmatilde_deltaz = GAMMAdeltaz.T.dot(Sigma.dot(GAMMAdeltaz))
+    #     # 2. Giải Optimal Transport
+    #     GAMMAdeltaz, basis_var_deltaz = OptimalTransport.solveOT(ns, nt, S_, h_, XsXt_deltaz).values()
+    #     # GAMMAdeltaz = res_ot['gamma'] # Giả định cấu trúc trả về từ values()
+    #     # basis_var_deltaz = res_ot['basis_var']
+    #     print(f"basis_var_deltaz: {len(basis_var_deltaz)}- {[int(x) for x in basis_var_deltaz]}")
+    #     Xtildeinloop = np.dot(GAMMAdeltaz, X)
+    #     Ytildeinloop = np.dot(GAMMAdeltaz, Ydeltaz)
+    #     Sigmatilde_deltaz = GAMMAdeltaz.T.dot(Sigma.dot(GAMMAdeltaz))
 
-        # 3. Lựa chọn Model (Selection) và Tính toán Interval
-        if method == 'FS':
-            if k_type == 'stopping':
-                # Tương đương para_DA_FSwithStoppingCriterion
-                if criterion == 'AIC':
-                    SELECTIONinloop = ForwardSelection.SelectionAIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
-                elif criterion == 'BIC':
-                    SELECTIONinloop = ForwardSelection.SelectionBIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
-                elif criterion == 'Adjusted R2':
-                    SELECTIONinloop = ForwardSelection.SelectionAdjR2(Ytildeinloop, Xtildeinloop)
+    #     # 3. Lựa chọn Model (Selection) và Tính toán Interval
+    #     if method == 'FS':
+    #         if k_type == 'stopping':
+    #             # Tương đương para_DA_FSwithStoppingCriterion
+    #             if criterion == 'AIC':
+    #                 SELECTIONinloop = ForwardSelection.SelectionAIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+    #             elif criterion == 'BIC':
+    #                 SELECTIONinloop = ForwardSelection.SelectionBIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+    #             elif criterion == 'Adjusted R2':
+    #                 SELECTIONinloop = ForwardSelection.SelectionAdjR2(Ytildeinloop, Xtildeinloop)
                 
-                intervalinloop = overconditioning.OC_Crit_interval(
-                    ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
-                    Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz, criterion
-                )
-            else:
-                # Tương đương para_DA_FSwithfixedK
-                SELECTIONinloop = ForwardSelection.fixedSelection(Ytildeinloop, Xtildeinloop, len(SELECTION_F))[0]
-                intervalinloop, _, _ = overconditioning.OC_fixedFS_interval(
-                    ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
-                    Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz
-                )
+    #             intervalinloop = overconditioning.OC_Crit_interval(
+    #                 ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
+    #                 Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz, criterion
+    #             )
+    #         else:
+    #             # Tương đương para_DA_FSwithfixedK
+    #             SELECTIONinloop = ForwardSelection.fixedSelection(Ytildeinloop, Xtildeinloop, len(SELECTION_F))[0]
+    #             intervalinloop, _, _ = overconditioning.OC_fixedFS_interval(
+    #                 ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
+    #                 Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz
+    #             )
 
-        elif method == 'BS':
-            if k_type == 'stopping':
-                # Tương đương para_DA_BSwith_stoppingCriteria
-                if criterion == 'AIC':
-                    SELECTIONinloop = BackwardSelection.SelectionAICforBS(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
-                elif criterion == 'BIC':
-                    SELECTIONinloop = BackwardSelection.SelectionBIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
-                elif criterion == 'Adjusted R2':
-                    SELECTIONinloop = BackwardSelection.SelectionAdjR2(Ytildeinloop, Xtildeinloop)
+    #     elif method == 'BS':
+    #         if k_type == 'stopping':
+    #             # Tương đương para_DA_BSwith_stoppingCriteria
+    #             if criterion == 'AIC':
+    #                 SELECTIONinloop = BackwardSelection.SelectionAICforBS(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+    #             elif criterion == 'BIC':
+    #                 SELECTIONinloop = BackwardSelection.SelectionBIC(Ytildeinloop, Xtildeinloop, Sigmatilde_deltaz)
+    #             elif criterion == 'Adjusted R2':
+    #                 SELECTIONinloop = BackwardSelection.SelectionAdjR2(Ytildeinloop, Xtildeinloop)
                 
-                intervalinloop = overconditioningBS.OC_DA_BS_Criterion(
-                    ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
-                    Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz, seed, criterion
-                )
-            else:
-                # Tương đương para_DA_BS
-                SELECTIONinloop = BackwardSelection.fixedBS(Ytildeinloop, Xtildeinloop, len(SELECTION_F))[0]
-                intervalinloop, _, _ = overconditioningBS.OC_fixedBS_interval(
-                    ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
-                    Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz
-                )
-        for left, right in intervalinloop:
-            if left <= z <= right:
-                intervalinloop = [(left, right)]
-                break
-        # End F(z) -> intervalinloop = [left, right] -------------
+    #             intervalinloop = overconditioningBS.OC_DA_BS_Criterion(
+    #                 ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
+    #                 Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz, seed, criterion
+    #             )
+    #         else:
+    #             # Tương đương para_DA_BS
+    #             SELECTIONinloop = BackwardSelection.fixedBS(Ytildeinloop, Xtildeinloop, len(SELECTION_F))[0]
+    #             intervalinloop, _, _ = overconditioningBS.OC_fixedBS_interval(
+    #                 ns, nt, a, b, XsXt_deltaz, Xtildeinloop, Ytildeinloop, 
+    #                 Sigmatilde_deltaz, basis_var_deltaz, S_, h_, SELECTIONinloop, GAMMAdeltaz
+    #             )
+    #     for left, right in intervalinloop:
+    #         if left <= z <= right:
+    #             intervalinloop = [(left, right)]
+    #             break
+    #     # End F(z) -> intervalinloop = [left, right] -------------
 
-        # 5. Kiểm tra nếu Selection khớp với Selection gốc (F) và Hợp nhất các khoảng hợp lệ (Interval Union)
-        if sorted(SELECTIONinloop) == sorted(SELECTION_F):
-            TD = intersection.interval_union(TD, intervalinloop)
-        z = intervalinloop[-1][1]
+    #     # 5. Kiểm tra nếu Selection khớp với Selection gốc (F) và Hợp nhất các khoảng hợp lệ (Interval Union)
+    #     if sorted(SELECTIONinloop) == sorted(SELECTION_F):
+    #         TD = intersection.interval_union(TD, intervalinloop)
+    #     z = intervalinloop[-1][1]
 
     return TD
