@@ -5,6 +5,7 @@ from . import ForwardSelection as FS
 from . import BackwardSelection as BS
 from . import overconditioning 
 from . import parametric
+from . import parametric_old 
 # from . import parametric_parallel as parametric
 from . import gendata
 from scipy.linalg import block_diag
@@ -92,6 +93,24 @@ def SI_SeqFS_DA(Xs, Ys, Xt, Yt, k, Sigma_s, Sigma_t, zmin=-20, zmax=20, method='
     etaTY = np.dot(eta.T, Y).item()
 
     # 5. Gọi hàm gộp duy nhất thay vì 4 hàm riêng lẻ
+    import time
+    t1 = time.time()
+    # finalinterval = parametric_old.parametric(
+    #     ns=ns, nt=nt, a=a, b=b, X=X, Sigma=Sigma, S_=S_, h_=h_, 
+    #     SELECTION_F=SELECTION_F, 
+    #     method=method_upper, 
+    #     k_type=k_type, 
+    #     criterion=criterion, 
+    #     z_min=zmin, z_max=zmax
+    # )
+
+    # selective_p_value = compute_p_value(finalinterval, etaTY, etaT_Sigma_eta)
+    # print(" pvalue of old parametric:", selective_p_value)
+    # with open(f"exp/time_old_{ns}.txt", "a") as f:
+    #     f.write(f"{time.time() - t1}\n")
+
+
+    t2 = time.time()
     finalinterval = parametric.parametric(
         ns=ns, nt=nt, a=a, b=b, X=X, Sigma=Sigma, S_=S_, h_=h_, 
         SELECTION_F=SELECTION_F, 
@@ -100,10 +119,12 @@ def SI_SeqFS_DA(Xs, Ys, Xt, Yt, k, Sigma_s, Sigma_t, zmin=-20, zmax=20, method='
         criterion=criterion, 
         z_min=zmin, z_max=zmax
     )
-    # print('Final intervals:', finalinterval)
+
     # 6. Tính p-value dựa trên tập các khoảng hội tụ (Truncated Normal)
     selective_p_value = compute_p_value(finalinterval, etaTY, etaT_Sigma_eta)
-    
+    print(" pvalue of new parametric:", selective_p_value)
+    with open(f"exp/time_new_nt{nt}.txt", "a") as f:
+        f.write(f"{time.time() - t2}\n")
     return selective_p_value
 
 if __name__ == "__main__":

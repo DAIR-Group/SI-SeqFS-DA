@@ -1,9 +1,10 @@
 import numpy as np 
 from sklearn.preprocessing import normalize
 
-def generate(n, m, p, true_beta_s, true_beta_t):
+def generate(n, m, p, true_beta_s, true_beta_t, fixed_seed=None):
     """return Xs, Xt, Ys, Yt, Sigma_s, Sigma_t"""
-
+    if fixed_seed is not None:
+        np.random.seed(fixed_seed)
     Xs = np.random.normal(loc = 0, scale = 1, size = (n, p))
     Xt = np.random.normal(loc = 0, scale = 1, size = (m, p))
 

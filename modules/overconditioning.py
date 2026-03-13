@@ -3,26 +3,26 @@ import numpy as np
 from . import intersection
 from . import ForwardSelection
 
-def interval_DA(ns, nt, X_, B, S_, h_, a, b):
+def interval_DA(ns, nt, c_, B, S_, h_, a, b):
     Bc = np.delete(np.array(range(ns*nt)), B)
 
     OMEGA = OptimalTransport.constructOMEGA(ns,nt)
-    c_ = np.zeros((ns * nt, 1))
-    for i in range(X_.shape[1]-1):
-        c_ += (OMEGA.dot(X_[:, [i]])) * (OMEGA.dot(X_[:, [i]]))
+    # c_ = np.zeros((ns * nt, 1))
+    # for i in range(X_.shape[1]-1):
+    #     c_ += (OMEGA.dot(X_[:, [i]])) * (OMEGA.dot(X_[:, [i]]))
 
     Omega_a = OMEGA.dot(a)
     Omega_b = OMEGA.dot(b)
 
     w_tilde = c_ + Omega_a * Omega_a
-    r_tilde = Omega_a * Omega_b + Omega_b * Omega_a
+    r_tilde = 2 * Omega_a * Omega_b
     o_tilde = Omega_b * Omega_b
     S_B_invS_Bc = np.linalg.inv(S_[:, B]).dot(S_[:, Bc])
 
     w = (w_tilde[Bc, :].T - w_tilde[B, :].T.dot(S_B_invS_Bc)).T
     r = (r_tilde[Bc, :].T - r_tilde[B, :].T.dot(S_B_invS_Bc)).T
     o = (o_tilde[Bc, :].T - o_tilde[B, :].T.dot(S_B_invS_Bc)).T
-    list_intervals = []
+
 
     interval = [(-np.inf, np.inf)]
     for i in range(w.shape[0]):
@@ -32,6 +32,7 @@ def interval_DA(ns, nt, X_, B, S_, h_, a, b):
         itv = intersection.solve_quadratic_inequality(g3,g2,g1)
 
         interval = intersection.interval_intersection(interval, itv)
+    # print("DAitv_org:", interval)
     return interval
 
 def interval_SFSabs(X, Y, K, lst_SELEC_k, lst_Portho, a, b):
