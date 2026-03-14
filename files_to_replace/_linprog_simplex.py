@@ -1,4 +1,4 @@
-# sth was modified
+# this file supports the simplex method for linear programming to return basis
 
 """Simplex method for  linear programming
 

@@ -6,7 +6,7 @@ import argparse
 import glob
 
 def get_scipy_path(env_type):
-    """Finds the SciPy installation directory based on the selected environment type."""
+    """Finds the SciPy installation directory based on the selected environment type"""
     if env_type == "anaconda":
         base_dir = os.environ.get("CONDA_PREFIX")
         if not base_dir:

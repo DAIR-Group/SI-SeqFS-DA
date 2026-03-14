@@ -6,7 +6,15 @@
 This package provides a statistical inference framework for sequential feature selection (SeqFS) after domain adaptation (DA). It leverages the SI framework and employs a divide-and-conquer strategy to efficiently compute the p-value of selected features. Our method ensures reliable feature selection by controlling the false positive rate (FPR) while simultaneously maximizing the true positive rate (TPR), effectively reducing the false negative rate (FNR).
 
 *For more details, refer to the paper at https://arxiv.org/abs/2501.09933*
+### Method Overview
 
+![SI-SeqFS-DA Overview](figs/Figure1.png)
+*Figure 1*: Illustration of the proposed SI-SeqFS-DA method. When SeqFS-DA is performed without statistical inference, it often results in the selection of irrelevant features (e.g., $X_4$), as the naive p-value for these features may appear small, even though they are falsely detected. In contrast, the SI-SeqFS-DA method improves feature selection by effectively distinguishing between false positives (FPs) and true positives (TPs). It assigns large p-values to FPs and small p-values to TPs, ensuring accurate identification of relevant features.
+
+![Divide and Conquer Strategy](figs/Figure2.png)
+*Figure 2*: Illustration of the SI-SeqFS-DA MethodThe data are first transformed through domain adaptation (DA), followed by sequential feature selection (SeqFS) to identify relevant features. Next, the data are parameterized by a scalar variable $z$ (in the dimension of the test statistic) to determine the truncation region $\mathcal{Z}$. A divide-and-conquer strategy is then used to efficiently identify $\mathcal{Z}$, after which valid statistical inference is conducted within this region.
+
+### Requirements
 This package has the following requirements:
 
     numpy
@@ -47,7 +55,7 @@ You can install this package from PyPI using:
 
 ### Example
 ```python 
-from si_seqfs_da import gendata, SI_SeqFS_DA
+from si_seqfs_da import gendata, SI_SeqFS_DA, DA_SeqFS
 import numpy as np
 
 ns = 50 #number of source's samples

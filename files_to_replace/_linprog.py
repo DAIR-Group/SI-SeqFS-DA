@@ -1,4 +1,4 @@
-# sth was modified
+# return basis for simplex method
 """
 A top-level linear programming interface.
 

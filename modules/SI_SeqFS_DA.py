@@ -1,5 +1,5 @@
 import numpy as np
-# from .gendata import generate
+from .gendata import generate
 from . import OptimalTransport
 from . import ForwardSelection as FS
 from . import BackwardSelection as BS
@@ -75,6 +75,7 @@ def SI_SeqFS_DA(Xs, Ys, Xt, Yt, k, Sigma_s, Sigma_t, zmin=-20, zmax=20, method =
         jth = np.random.choice(range(len(SELECTION_F)))
     if jth >= len(SELECTION_F):
         raise ValueError('jth must be less than the number of features selected')
+    # print(f"{jth}-th feature in {SELECTION_F}")
     ej = np.zeros((len(SELECTION_F), 1))
     ej[jth][0] = 1
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 
     Xs, Xt, Ys, Yt, Sigma_s, Sigma_t = generate(ns, nt, p, true_beta_s, true_beta_t)
 
-    # K = 'AIC' # number of features to be selected
+    K = 3 # number of features to be selected
     print(SI_SeqFS_DA(Xs, Ys, Xt, Yt, K, Sigma_s, Sigma_t, method='forward', jth=None)) #jth = None means randomly choose jth
 
     K = 'AIC' # stopping criterion
